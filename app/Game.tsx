@@ -1,7 +1,15 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { LEVELS, POWER_NAMES, upgradeCopy, type UpgradeKey } from "./game-data";
+import {
+  FARMER_SKIP,
+  LEVELS,
+  POWER_NAMES,
+  eggLayWindow,
+  farmEggCadence,
+  upgradeCopy,
+  type UpgradeKey,
+} from "./game-data";
 
 type Point = { x: number; y: number };
 type Actor = Point & { vx: number; vy: number; r: number; angle: number };
@@ -69,6 +77,7 @@ type GameState = {
   nextRooster: number;
   nextWeasel: number;
   nextPower: number;
+  eggLayClock: number;
   shake: number;
   upgrades: Record<UpgradeKey, number>;
   keys: Set<string>;
@@ -216,6 +225,7 @@ function createBaseGame(): GameState {
     nextRooster: 20,
     nextWeasel: 15,
     nextPower: 9,
+    eggLayClock: 2.8,
     shake: 0,
     upgrades: { boots: 0, cannon: 0, basket: 0, dog: 0, overalls: 0 },
     keys: new Set(),
@@ -268,9 +278,11 @@ function setupLevel(g: GameState, level: number) {
   g.nextRooster = level === 1 ? 999 : random(16, 21);
   g.nextWeasel = level === 1 ? 999 : random(12, 17);
   g.nextPower = random(8, 11);
+  g.eggLayClock = random(2.6, 3.5);
   g.shake = 0;
 
   const chickenCount = Math.min(8, level + 1);
+  const layWindow = eggLayWindow(level);
   for (let i = 0; i < chickenCount; i++) {
     const p = clearSpot(g, 80);
     g.chickens.push({
@@ -282,7 +294,7 @@ function setupLevel(g: GameState, level: number) {
       r: 15,
       angle: random(0, TAU),
       wander: random(0.4, 1.8),
-      lay: random(Math.max(0.5, 1 / (1 + (level - 1) * 0.15)), Math.max(1.5, 3 / (1 + (level - 1) * 0.15))),
+      lay: random(layWindow.min * 0.8, layWindow.max),
       flap: random(0, TAU),
       carried: false,
     });
@@ -517,7 +529,8 @@ function updateGame(g: GameState, rawDt: number) {
   safeMove(g, g.player, g.player.vx * dt, g.player.vy * dt);
   g.player.anim += Math.hypot(g.player.vx, g.player.vy) * dt * 0.04;
 
-  const layScale = Math.max(0.5, 1 / (1 + (level - 1) * 0.15));
+  const layWindow = eggLayWindow(level);
+  g.eggLayClock = Math.max(0, g.eggLayClock - dt);
   for (const chicken of g.chickens) {
     if (chicken.carried) continue;
     chicken.wander -= dt;
@@ -530,11 +543,17 @@ function updateGame(g: GameState, rawDt: number) {
     chicken.vx = Math.cos(chicken.angle) * 38;
     chicken.vy = Math.sin(chicken.angle) * 38;
     safeMove(g, chicken, chicken.vx * dt, chicken.vy * dt);
-    if (chicken.lay <= 0) {
-      spawnEgg(g, chicken);
-      chicken.lay = random(Math.max(0.5, layScale), Math.max(1.5, 3 * layScale));
-      chicken.flap += 1.2;
+  }
+  const readyHens = g.chickens.filter((chicken) => !chicken.carried && chicken.lay <= 0);
+  if (readyHens.length && g.eggLayClock <= 0) {
+    const chicken = readyHens[Math.floor(random(0, readyHens.length))];
+    spawnEgg(g, chicken);
+    chicken.lay = random(layWindow.min, layWindow.max);
+    chicken.flap += 1.2;
+    for (const waitingHen of readyHens) {
+      if (waitingHen.id !== chicken.id) waitingHen.lay = random(0.35, 1.15);
     }
+    g.eggLayClock = farmEggCadence(level) * random(0.9, 1.12);
   }
 
   for (const egg of g.eggs) {
@@ -1824,7 +1843,8 @@ export default function Game() {
                 <div className="start-copy">
                   <p className="eyebrow">FARMER SKIP HAS HAD ENOUGH</p>
                   <h1>Cluck-and-<br />Cover<span>_GPT</span></h1>
-                  <p className="lead">Ten yards. Two bosses. One old farmer with three lives, a fistful of corn, and absolutely no patience for egg thieves.</p>
+                  <p className="lead"><strong>Meet Farmer Skip.</strong> He has spent a lifetime learning every fence post, muddy rut, and stubborn hen on this land. Farming is the only life he ever wanted—and today, a yard full of thieves is making it personal.</p>
+                  <p className="skip-credo">{FARMER_SKIP.credo}</p>
                   <div className="control-strip">
                     <div><span className="key-pair">WASD</span><small>Move Farmer Skip</small></div>
                     <div><span className="mouse-icon"><i /></span><small>Click to throw corn</small></div>
@@ -1843,7 +1863,10 @@ export default function Game() {
                   <span className="chapter-rule" />
                   <p>{levelDef.kicker}</p>
                   <h2>{levelDef.name}</h2>
-                  <div className="twist"><span>YARD RULE</span>{levelDef.twist}</div>
+                  <div className="intro-details">
+                    <div className="twist"><span>YARD RULE</span>{levelDef.twist}</div>
+                    <div className="skip-story"><span>WHY THIS YARD MATTERS TO SKIP</span><p>{levelDef.story}</p></div>
+                  </div>
                   <blockquote>“{levelDef.skipLine}”<cite>Farmer Skip</cite></blockquote>
                   <button className="primary-button" type="button" onClick={enterLevel}>{bossLevel ? "Settle this" : "Enter the yard"} <i aria-hidden="true" /></button>
                 </div>
@@ -1869,6 +1892,7 @@ export default function Game() {
                   <div><span>LEVEL {hud.level} CLEARED</span><h2>Skip’s Supply Shed</h2><p>Score stays put. Coins do the spending.</p></div>
                   <div className="coin-purse"><span>COINS</span><strong>{hud.coins}</strong></div>
                 </div>
+                <div className="shed-note"><span>FROM SKIP’S LEDGER</span><p>“{levelDef.shedLine}”</p></div>
                 <div className="shop-grid">
                   {(Object.keys(upgradeCopy) as UpgradeKey[]).map((key) => {
                     const item = upgradeCopy[key];
@@ -1934,24 +1958,29 @@ export default function Game() {
         </div>
 
         <aside className="right-rail">
-          <span className="rail-label">SKIP’S FIELD NOTES</span>
-          <div className="tip-card">
-            <span className="tip-number">01</span>
-            <h3>Chain the basket</h3>
-            <p>Collect within two seconds to build combo bonuses up to +5.</p>
+          <span className="rail-label">THE MAN BEHIND THE SCOWL</span>
+          <div className="skip-profile-card">
+            <div className="profile-heading">
+              <span className="mini-skip" aria-hidden="true"><i /><b /></span>
+              <div><small>FARMER SKIP</small><h3>{FARMER_SKIP.title}</h3></div>
+            </div>
+            <p>{FARMER_SKIP.bio}</p>
+            <dl>
+              <div><dt>CREED</dt><dd>{FARMER_SKIP.credo}</dd></div>
+              <div><dt>SOFT SPOT</dt><dd>{FARMER_SKIP.softSpot}</dd></div>
+            </dl>
           </div>
-          <div className="tip-card">
-            <span className="tip-number">02</span>
-            <h3>Corn talks</h3>
-            <p>Snake +5. Rooster +8. Weasel +10. Bosses lose grit.</p>
+          <div className="yard-memory">
+            <span>THIS PATCH OF LAND</span>
+            <p>{levelDef.story}</p>
           </div>
+          <blockquote className="rail-quote">“{levelDef.skipLine}”</blockquote>
           <div className="egg-key">
             <span className="rail-label">EGG VALUE</span>
             <div><i className="egg normal" /><span>Farm fresh<b>1</b></span></div>
             <div><i className="egg golden" /><span>Golden<b>3</b></span></div>
             <div><i className="egg special" /><span>Speckled teal<b>5</b></span></div>
           </div>
-          <p className="field-quote">“A tidy farm is a farm nobody else has visited.”</p>
         </aside>
       </section>
 

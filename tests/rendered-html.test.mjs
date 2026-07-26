@@ -20,6 +20,8 @@ test("server-renders the finished _GPT game shell", async () => {
   const html = await response.text();
   assert.match(html, /<title>Cluck-and-Cover_GPT/);
   assert.match(html, /Farmer Skip/);
+  assert.match(html, /Keeper of the old farm/i);
+  assert.match(html, /THE MAN BEHIND THE SCOWL/i);
   assert.match(html, /Start the morning/);
   assert.doesNotMatch(html, /codex-preview|Your site is taking shape|react-loading-skeleton/i);
 });
@@ -41,6 +43,14 @@ test("ships every named level and both bosses", async () => {
   ]) assert.match(data, new RegExp(name));
   assert.match(data, /KING COIL/);
   assert.match(data, /REDD RANSOM/);
+  assert.equal((data.match(/\n    story:/g) ?? []).length, 10);
+  assert.equal((data.match(/\n    shedLine:/g) ?? []).length, 10);
+  assert.match(data, /function eggLayWindow/);
+  assert.match(data, /Math\.max\(2\.4,/);
+  assert.match(data, /function farmEggCadence/);
+  assert.match(data, /Math\.max\(1\.75, 3\.4/);
+  assert.match(game, /eggLayClock/);
+  assert.match(game, /readyHens/);
   assert.match(game, /requestAnimationFrame/);
   assert.match(game, /activePower/);
   assert.match(data, /Corn Cannon/);

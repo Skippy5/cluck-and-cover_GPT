@@ -1,6 +1,6 @@
 # Cluck-and-Cover_GPT
 
-Farmer Skip is an older, weathered, spectacularly grumpy farmer who loves his land and his hens. Unfortunately, a growing collection of snakes, roosters, weasels, and one fox bandit have mistaken his farm for an all-you-can-steal buffet. **Cluck-and-Cover_GPT** is a complete ten-level browser arcade game about gathering eggs, chaining combos, throwing corn, buying upgrades, beating two bosses, and getting every last trespasser off Skip's lawn.
+Farmer Skip is an older, weathered, spectacularly grumpy farmer who loves his land and his hens. Unfortunately, a growing collection of snakes, roosters, weasels, and one fox bandit have mistaken his farm for an all-you-can-steal buffet. **Cluck-and-Cover_GPT** is his complete ten-level browser arcade story: every yard now reveals part of Skip's life on the farm while players gather eggs at a deliberate, globally staggered pace, chain combos, throw corn, buy upgrades, beat two bosses, and get every last trespasser off his lawn.
 
 ## Play
 
