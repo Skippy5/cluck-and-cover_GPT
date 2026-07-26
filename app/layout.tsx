@@ -5,7 +5,7 @@ export const metadata: Metadata = {
   title: "Cluck-and-Cover_GPT | Farmer Skip's Farmyard Arcade Run",
   description:
     "Help grumpy old Farmer Skip rescue his hens and eggs across ten hand-drawn farmyards, two boss battles, and one very bad morning.",
-  metadataBase: new URL("https://cluck-and-cover-gpt.vercel.app"),
+  metadataBase: new URL("https://cluck-and-covergpt.vercel.app"),
   openGraph: {
     title: "Cluck-and-Cover_GPT",
     description: "Ten yards. Two bosses. One grumpy old farmer with a fistful of corn.",
@@ -27,4 +27,3 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
     </html>
   );
 }
-

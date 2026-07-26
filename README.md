@@ -36,6 +36,5 @@ Then open `http://localhost:3000`.
 
 ## Production
 
-- Live game: https://cluck-and-cover-gpt.vercel.app
+- Live game: https://cluck-and-covergpt.vercel.app
 - Repository: https://github.com/FarmerSkip/cluck-and-cover_GPT
-
