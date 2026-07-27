@@ -210,11 +210,33 @@ canvas:focus-visible {
 }
 
 .level-kicker {
-  margin: 0 0 23px;
+  margin: 0 0 10px;
   color: #9b3e2f;
   font-size: 10px;
   font-weight: 900;
   letter-spacing: 0.19em;
+}
+
+.threat-badge {
+  width: fit-content;
+  margin: 0 0 20px;
+  padding: 6px 9px;
+  border: 1px solid #a87955;
+  background: rgba(255, 241, 204, .42);
+}
+
+.threat-badge span {
+  margin-right: 7px;
+  color: #795944;
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: .16em;
+}
+
+.threat-badge strong {
+  color: #8f352a;
+  font-size: 9px;
+  letter-spacing: .11em;
 }
 
 .quota-card {

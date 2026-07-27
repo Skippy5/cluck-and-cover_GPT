@@ -46,13 +46,44 @@ test("ships every named level and both bosses", async () => {
   assert.equal((data.match(/\n    story:/g) ?? []).length, 10);
   assert.equal((data.match(/\n    shedLine:/g) ?? []).length, 10);
   assert.match(data, /function eggLayWindow/);
-  assert.match(data, /Math\.max\(2\.4,/);
+  assert.match(data, /Math\.max\(2\.8,/);
   assert.match(data, /function farmEggCadence/);
-  assert.match(data, /Math\.max\(1\.75, 3\.4/);
+  assert.match(data, /DIFFICULTY_CURVE/);
+  assert.match(data, /WARM-UP/);
+  assert.match(data, /FINAL RECKONING/);
+  assert.match(data, /quota: 5/);
+  assert.match(data, /quota: 15/);
   assert.match(game, /eggLayClock/);
   assert.match(game, /readyHens/);
+  assert.match(game, /targetEggId/);
+  assert.match(game, /g\.lastShot = -1/);
+  assert.doesNotMatch(game, /Math\.random\(\) < 0\.7/);
   assert.match(game, /requestAnimationFrame/);
   assert.match(game, /activePower/);
   assert.match(data, /Corn Cannon/);
   assert.match(game, /restartLevel/);
+});
+
+test("uses stable snake intent, fresh shooting state, and a rising challenge curve", async () => {
+  const data = await readFile(new URL("../app/game-data.ts", import.meta.url), "utf8");
+  const game = await readFile(new URL("../app/Game.tsx", import.meta.url), "utf8");
+  const rows = [...data.matchAll(
+    /\{ threat: "([^"]+)", quota: (\d+), snakeLimit: (\d+), snakeSpeed: ([\d.]+), eggCadence: ([\d.]+)/g,
+  )].map((match) => ({
+    threat: match[1],
+    quota: Number(match[2]),
+    snakeLimit: Number(match[3]),
+    snakeSpeed: Number(match[4]),
+    eggCadence: Number(match[5]),
+  }));
+
+  assert.equal(rows.length, 10);
+  assert.deepEqual(rows.filter((_, index) => ![4, 9].includes(index)).map((row) => row.quota), [5, 7, 9, 11, 12, 13, 14, 15]);
+  assert.deepEqual(rows.filter((_, index) => ![4, 9].includes(index)).map((row) => row.snakeSpeed), [0.54, 0.58, 0.61, 0.64, 0.67, 0.68, 0.71, 0.74]);
+  assert.ok(rows[0].eggCadence > rows[8].eggCadence);
+  assert.match(game, /snake\.targetEggId = eggTarget\?\.id/);
+  assert.match(game, /g\.lastShot = -1;\s+g\.keys\.clear\(\)/);
+  assert.match(game, /difficulty\.roosterDelay/);
+  assert.match(game, /difficulty\.weaselDelay/);
+  assert.match(game, /ctx\.clearRect\(0, 0, ctx\.canvas\.width, ctx\.canvas\.height\)/);
 });

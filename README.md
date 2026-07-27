@@ -1,6 +1,6 @@
 # Cluck-and-Cover_GPT
 
-Farmer Skip is an older, weathered, spectacularly grumpy farmer who loves his land and his hens. Unfortunately, a growing collection of snakes, roosters, weasels, and one fox bandit have mistaken his farm for an all-you-can-steal buffet. **Cluck-and-Cover_GPT** is his complete ten-level browser arcade story: every yard now reveals part of Skip's life on the farm while players gather eggs at a deliberate, globally staggered pace, chain combos, throw corn, buy upgrades, beat two bosses, and get every last trespasser off his lawn.
+Farmer Skip is an older, weathered, spectacularly grumpy farmer who loves his land and his hens. Unfortunately, a growing collection of snakes, roosters, weasels, and one fox bandit have mistaken his farm for an all-you-can-steal buffet. **Cluck-and-Cover_GPT** is his complete ten-level browser arcade story: every yard reveals part of Skip's life on the farm while players gather eggs at a deliberate, globally staggered pace, chain combos, throw corn, buy upgrades, beat two bosses, and get every last trespasser off his lawn.
 
 ## Play
 
@@ -9,7 +9,7 @@ Farmer Skip is an older, weathered, spectacularly grumpy farmer who loves his la
 - Press **P** or **Escape** to pause.
 - On touch screens, use the on-screen direction pad and Throw button.
 
-Collect the level quota before the snakes reach their egg limit. Normal, golden, and speckled teal eggs are worth 1, 3, and 5 points. Quick pickups build a combo. Coins can be spent between non-boss levels without reducing the displayed score.
+Collect the level quota before the snakes reach their egg limit. Normal, golden, and speckled teal eggs are worth 1, 3, and 5 points. Quick pickups build a combo. Each clear awards a coin bonus, and upgrades are priced to become useful during the run instead of only at the end.
 
 ## What is included
 
@@ -17,6 +17,8 @@ Collect the level quota before the snakes reach their egg limit. Normal, golden,
 - King Coil at Level 5 and Redd Ransom at Level 10
 - Chickens, eggs, snakes, rooster raids, weasel attacks, apples, ice, mud, darkness, and four timed power-ups
 - Five upgrade paths, including Mabel the farm dog
+- A hand-tuned ten-level difficulty curve that introduces threats gradually, then increases enemy speed and raid frequency
+- Predictable snakes that commit to one egg at a time instead of changing targets every frame
 - Keyboard, pointer, and touch controls
 - Synthesized Web Audio effects
 - Pause, level restart, full replay, game-over, and stat-rich victory screens

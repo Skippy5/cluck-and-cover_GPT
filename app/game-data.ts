@@ -20,6 +20,16 @@ export type LevelDef = {
   boss?: "snake" | "fox";
 };
 
+export type DifficultyDef = {
+  threat: string;
+  quota: number;
+  snakeLimit: number;
+  snakeSpeed: number;
+  eggCadence: number;
+  roosterDelay: readonly [number, number] | null;
+  weaselDelay: readonly [number, number] | null;
+};
+
 export const FARMER_SKIP = {
   title: "Keeper of the old farm",
   credo: "Good soil, honest work, and nobody touching his hens.",
@@ -27,16 +37,33 @@ export const FARMER_SKIP = {
   softSpot: "His hens, though he insists they are merely reliable employees.",
 } as const;
 
+export const DIFFICULTY_CURVE = [
+  { threat: "WARM-UP", quota: 5, snakeLimit: 5, snakeSpeed: 0.54, eggCadence: 3.8, roosterDelay: null, weaselDelay: null },
+  { threat: "STIRRING", quota: 7, snakeLimit: 6, snakeSpeed: 0.58, eggCadence: 3.6, roosterDelay: [16, 20], weaselDelay: null },
+  { threat: "WATCHFUL", quota: 9, snakeLimit: 7, snakeSpeed: 0.61, eggCadence: 3.4, roosterDelay: [16, 20], weaselDelay: [17, 21] },
+  { threat: "ROWDY", quota: 11, snakeLimit: 8, snakeSpeed: 0.64, eggCadence: 3.2, roosterDelay: [14, 18], weaselDelay: [15, 19] },
+  { threat: "KING COIL", quota: 0, snakeLimit: 99, snakeSpeed: 0.6, eggCadence: 3.2, roosterDelay: null, weaselDelay: null },
+  { threat: "TOUGH", quota: 12, snakeLimit: 9, snakeSpeed: 0.67, eggCadence: 3, roosterDelay: [13, 17], weaselDelay: [14, 18] },
+  { threat: "DOUBLE TROUBLE", quota: 13, snakeLimit: 9, snakeSpeed: 0.68, eggCadence: 2.85, roosterDelay: [12, 16], weaselDelay: [13, 17] },
+  { threat: "HEAVY GOING", quota: 14, snakeLimit: 10, snakeSpeed: 0.71, eggCadence: 2.7, roosterDelay: [11, 15], weaselDelay: [12, 16] },
+  { threat: "WHITE-KNUCKLE", quota: 15, snakeLimit: 10, snakeSpeed: 0.74, eggCadence: 2.55, roosterDelay: [10, 14], weaselDelay: [11, 15] },
+  { threat: "FINAL RECKONING", quota: 0, snakeLimit: 99, snakeSpeed: 0, eggCadence: 2.7, roosterDelay: null, weaselDelay: null },
+] as const satisfies readonly DifficultyDef[];
+
+export function difficultyFor(level: number): DifficultyDef {
+  return DIFFICULTY_CURVE[Math.max(0, Math.min(DIFFICULTY_CURVE.length - 1, level - 1))];
+}
+
 export function eggLayWindow(level: number) {
-  const speedUp = Math.pow(0.94, Math.max(0, level - 1));
+  const speedUp = Math.pow(0.96, Math.max(0, level - 1));
   return {
-    min: Math.max(2.4, 4.2 * speedUp),
-    max: Math.max(3.8, 6.6 * speedUp),
+    min: Math.max(2.8, 4.4 * speedUp),
+    max: Math.max(4.2, 6.8 * speedUp),
   };
 }
 
 export function farmEggCadence(level: number) {
-  return Math.max(1.75, 3.4 - Math.max(0, level - 1) * 0.15);
+  return difficultyFor(level).eggCadence;
 }
 
 export const LEVELS: LevelDef[] = [
@@ -159,31 +186,31 @@ export const upgradeCopy = {
     name: "Swift Boots",
     description: "Farmer Skip moves 10% faster per tier.",
     max: 3,
-    prices: [18, 34, 56],
+    prices: [14, 28, 48],
   },
   cannon: {
     name: "Corn Cannon",
     description: "Two kernels, then three; final tier pierces once.",
     max: 3,
-    prices: [22, 42, 68],
+    prices: [18, 36, 60],
   },
   basket: {
     name: "Big Basket",
     description: "+1 value from golden and special eggs per tier.",
     max: 3,
-    prices: [16, 32, 52],
+    prices: [12, 24, 42],
   },
   dog: {
     name: "Farm Dog",
     description: "Mabel patrols the field and automatically chases weasels away.",
     max: 1,
-    prices: [72],
+    prices: [48],
   },
   overalls: {
     name: "Spare Overalls",
     description: "Add one life, up to five. Price rises each time.",
     max: 3,
-    prices: [28, 46, 70],
+    prices: [22, 40, 62],
   },
 } as const;
 

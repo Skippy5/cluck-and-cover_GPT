@@ -5,6 +5,7 @@ import {
   FARMER_SKIP,
   LEVELS,
   POWER_NAMES,
+  difficultyFor,
   eggLayWindow,
   farmEggCadence,
   upgradeCopy,
@@ -16,7 +17,7 @@ type Actor = Point & { vx: number; vy: number; r: number; angle: number };
 type Chicken = Actor & { id: number; wander: number; lay: number; flap: number; carried: boolean };
 type EggKind = "normal" | "golden" | "special";
 type Egg = Point & { id: number; kind: EggKind; age: number; bob: number };
-type Snake = Actor & { id: number; pulse: number; enraged: number };
+type Snake = Actor & { id: number; pulse: number; enraged: number; targetEggId: number | null };
 type Projectile = Actor & { life: number; pierce: number };
 type Enemy = Actor & { life: number };
 type Weasel = Enemy & { target: number };
@@ -104,6 +105,7 @@ type Hud = {
   totalEggs: number;
   bestCombo: number;
   accuracy: number;
+  threat: string;
 };
 
 const TAU = Math.PI * 2;
@@ -112,8 +114,8 @@ const PLAYER_SPEED = 215;
 const clamp = (n: number, min: number, max: number) => Math.max(min, Math.min(max, n));
 const distance = (a: Point, b: Point) => Math.hypot(a.x - b.x, a.y - b.y);
 const random = (min: number, max: number) => min + Math.random() * (max - min);
-const quotaFor = (level: number) => Math.min(20, 5 + (level - 1) * 3);
-const snakeLimitFor = (level: number) => Math.min(15, 5 + (level - 1) * 2);
+const quotaFor = (level: number) => difficultyFor(level).quota;
+const snakeLimitFor = (level: number) => difficultyFor(level).snakeLimit;
 
 function circleRect(a: Point & { r: number }, o: Obstacle) {
   const px = clamp(a.x, o.x, o.x + o.w);
@@ -231,7 +233,7 @@ function createBaseGame(): GameState {
     keys: new Set(),
     pointer: { x: width / 2, y: height / 2 },
     sound: true,
-    lastShot: 0,
+    lastShot: -1,
     nextId: 1,
   };
 }
@@ -250,6 +252,7 @@ function resetActorPositions(g: GameState) {
 }
 
 function setupLevel(g: GameState, level: number) {
+  const difficulty = difficultyFor(level);
   g.level = level;
   g.width = 930 + level * 24;
   g.height = 570 + level * 9;
@@ -259,6 +262,8 @@ function setupLevel(g: GameState, level: number) {
   g.combo = 0;
   g.comboTimer = 0;
   g.elapsed = 0;
+  g.lastShot = -1;
+  g.keys.clear();
   g.levelStartScore = g.score;
   g.levelStartCoins = g.coins;
   g.player = { x: 120, y: g.height / 2, vx: 0, vy: 0, r: 19, angle: 0, invulnerable: 1.2, stunned: 0, anim: 0 };
@@ -275,11 +280,12 @@ function setupLevel(g: GameState, level: number) {
   g.popups = [];
   g.apples = [];
   g.fox = null;
-  g.nextRooster = level === 1 ? 999 : random(16, 21);
-  g.nextWeasel = level === 1 ? 999 : random(12, 17);
+  g.nextRooster = difficulty.roosterDelay ? random(...difficulty.roosterDelay) : Infinity;
+  g.nextWeasel = difficulty.weaselDelay ? random(...difficulty.weaselDelay) : Infinity;
   g.nextPower = random(8, 11);
-  g.eggLayClock = random(2.6, 3.5);
+  g.eggLayClock = random(difficulty.eggCadence * 0.82, difficulty.eggCadence);
   g.shake = 0;
+  g.pointer = { x: g.width / 2, y: g.height / 2 };
 
   const chickenCount = Math.min(8, level + 1);
   const layWindow = eggLayWindow(level);
@@ -303,7 +309,7 @@ function setupLevel(g: GameState, level: number) {
   if (level === 5) {
     g.bossHp = 10;
     g.bossMaxHp = 10;
-    g.snakes.push({ id: g.nextId++, x: g.width - 150, y: g.height / 2, vx: 0, vy: 0, r: 34, angle: Math.PI, pulse: 0, enraged: 0 });
+    g.snakes.push({ id: g.nextId++, x: g.width - 150, y: g.height / 2, vx: 0, vy: 0, r: 34, angle: Math.PI, pulse: 0, enraged: 0, targetEggId: null });
   } else if (level === 10) {
     g.bossHp = 15;
     g.bossMaxHp = 15;
@@ -311,7 +317,7 @@ function setupLevel(g: GameState, level: number) {
   } else {
     const count = level === 7 ? 2 : 1;
     for (let i = 0; i < count; i++) {
-      g.snakes.push({ id: g.nextId++, x: g.width - 120 - i * 45, y: g.height * (0.38 + i * 0.25), vx: 0, vy: 0, r: 18, angle: Math.PI, pulse: 0, enraged: 0 });
+      g.snakes.push({ id: g.nextId++, x: g.width - 120 - i * 45, y: g.height * (0.38 + i * 0.25), vx: 0, vy: 0, r: 18, angle: Math.PI, pulse: 0, enraged: 0, targetEggId: null });
     }
   }
   g.dog = g.upgrades.dog ? { x: 170, y: g.height / 2 + 55, vx: 0, vy: 0, r: 17, angle: 0 } : null;
@@ -474,6 +480,9 @@ function projectileHit(g: GameState, projectile: Projectile, target: Point & { r
 
 function finishLevel(g: GameState) {
   if (g.stage !== "playing") return;
+  g.keys.clear();
+  g.projectiles = [];
+  g.coins += g.level === 5 ? 24 : g.level === 10 ? 0 : 8 + g.level * 2;
   tone(g, 620, 0.18, "triangle", 0.05);
   setTimeout(() => tone(g, 820, 0.22, "triangle", 0.05), 100);
   if (g.level === 10) g.stage = "win";
@@ -485,6 +494,7 @@ function updateGame(g: GameState, rawDt: number) {
   if (g.stage !== "playing") return;
   const dt = Math.min(0.034, rawDt);
   const level = g.level;
+  const difficulty = difficultyFor(level);
   const freezeFactor = g.activePower?.kind === "freeze" ? 0.3 : 1;
   g.elapsed += dt;
   g.player.invulnerable = Math.max(0, g.player.invulnerable - dt);
@@ -570,13 +580,24 @@ function updateGame(g: GameState, rawDt: number) {
   for (const snake of g.snakes) {
     snake.pulse += dt * 7;
     snake.enraged = Math.max(0, snake.enraged - dt);
-    const target = g.eggs.length && (level === 5 || Math.random() < 0.7) ? nearest(snake, g.eggs)! : g.player;
-    let snakeSpeed = PLAYER_SPEED * 0.66 * freezeFactor * (1 + Math.max(0, level - 1) * 0.018);
+    let eggTarget = snake.targetEggId == null ? null : g.eggs.find((egg) => egg.id === snake.targetEggId) ?? null;
+    if (level === 5) {
+      snake.targetEggId = null;
+      eggTarget = null;
+    } else if (!eggTarget && g.eggs.length) {
+      eggTarget = nearest(snake, g.eggs);
+      snake.targetEggId = eggTarget?.id ?? null;
+    } else if (!g.eggs.length) {
+      snake.targetEggId = null;
+    }
+    const target = eggTarget ?? g.player;
+    let snakeSpeed = PLAYER_SPEED * difficulty.snakeSpeed * freezeFactor;
     if (level === 5) snakeSpeed *= snake.enraged > 0 ? 1.35 : 0.92;
     moveToward(g, snake, target, snakeSpeed, dt, level === 3);
     const eaten = g.eggs.find((egg) => distance(snake, egg) < snake.r + 9);
     if (eaten) {
       g.eggs = g.eggs.filter((egg) => egg.id !== eaten.id);
+      if (snake.targetEggId === eaten.id) snake.targetEggId = null;
       if (level !== 5) g.snakeEggs++;
       spawnBurst(g, eaten, "#98bb64", 6);
       tone(g, 155, 0.08, "sawtooth", 0.02);
@@ -584,28 +605,29 @@ function updateGame(g: GameState, rawDt: number) {
     if (distance(snake, g.player) < snake.r + g.player.r) loseLife(g, level === 5 ? "KING-SIZED BITE!" : "SNAKEBITE!");
   }
 
-  if (level !== 1 && level !== 5 && level !== 10) {
+  if (difficulty.roosterDelay) {
     g.nextRooster -= dt;
     if (!g.rooster && g.nextRooster <= 0) {
       const p = enterFromEdge(g, 20);
       g.rooster = { ...p, vx: 0, vy: 0, r: 20, angle: 0, life: 15 };
-      g.nextRooster = random(18, 23);
+      g.nextRooster = random(...difficulty.roosterDelay);
       g.popups.push({ x: g.width / 2, y: 65, text: "ROOSTER RAMPAGE!", life: 1.2, color: "#f6c84c", big: true });
     }
     if (g.rooster) {
       g.rooster.life -= dt;
-      moveToward(g, g.rooster, g.player, PLAYER_SPEED * 0.82 * freezeFactor, dt);
+      moveToward(g, g.rooster, g.player, PLAYER_SPEED * (0.73 + level * 0.019) * freezeFactor, dt);
       if (distance(g.rooster, g.player) < g.rooster.r + g.player.r) loseLife(g, "PECKED!");
       if (g.rooster.life <= 0) g.rooster = null;
     }
-
+  }
+  if (difficulty.weaselDelay) {
     g.nextWeasel -= dt;
     if (!g.weasel && g.nextWeasel <= 0 && g.chickens.some((c) => !c.carried)) {
       const p = enterFromEdge(g, 18);
       const targets = g.chickens.filter((c) => !c.carried);
       const target = targets[Math.floor(random(0, targets.length))];
       g.weasel = { ...p, vx: 0, vy: 0, r: 18, angle: 0, life: 20, target: target.id };
-      g.nextWeasel = random(13, 18);
+      g.nextWeasel = random(...difficulty.weaselDelay);
       g.popups.push({ x: g.width / 2, y: 65, text: "WEASEL IN THE YARD!", life: 1.1, color: "#eaa96b", big: true });
     }
     if (g.weasel) {
@@ -613,7 +635,7 @@ function updateGame(g: GameState, rawDt: number) {
       const target = g.chickens.find((c) => c.id === g.weasel!.target && !c.carried) ?? nearest(g.weasel, g.chickens.filter((c) => !c.carried));
       if (target) {
         g.weasel.target = target.id;
-        moveToward(g, g.weasel, target, PLAYER_SPEED * 0.9 * freezeFactor, dt);
+        moveToward(g, g.weasel, target, PLAYER_SPEED * (0.78 + level * 0.019) * freezeFactor, dt);
         if (distance(g.weasel, target) < g.weasel.r + target.r) {
           g.chickens = g.chickens.filter((c) => c.id !== target.id);
           g.lostChickens++;
@@ -765,6 +787,7 @@ function updateGame(g: GameState, rawDt: number) {
           const p = clearSpot(g);
           snake.x = p.x;
           snake.y = p.y;
+          snake.targetEggId = null;
           g.popups.push({ x: snake.x, y: snake.y - 26, text: "+5 SNAKE SHOO!", life: 0.8, color: "#d7ed94" });
         }
         spawnBurst(g, snake, "#d7ed94", 12);
@@ -1467,6 +1490,12 @@ function drawPower(ctx: CanvasRenderingContext2D, p: PowerUp, time: number) {
 
 function drawCanvas(ctx: CanvasRenderingContext2D, g: GameState) {
   ctx.save();
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.globalAlpha = 1;
+  ctx.globalCompositeOperation = "source-over";
+  ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+  ctx.restore();
+  ctx.save();
   const sx = g.shake > 0 ? random(-7, 7) * Math.min(1, g.shake * 4) : 0;
   const sy = g.shake > 0 ? random(-6, 6) * Math.min(1, g.shake * 4) : 0;
   ctx.translate(sx, sy);
@@ -1589,6 +1618,7 @@ function initialHud(g: GameState): Hud {
     totalEggs: g.totalEggs,
     bestCombo: g.bestCombo,
     accuracy: g.shots ? Math.round(g.hits / g.shots * 100) : 0,
+    threat: difficultyFor(g.level).threat,
   };
 }
 
@@ -1710,6 +1740,16 @@ export default function Game() {
     const g = gameRef.current;
     g.stage = "playing";
     g.player.invulnerable = 1;
+    g.keys.clear();
+    g.lastShot = -1;
+    g.popups.push({
+      x: g.width / 2,
+      y: 64,
+      text: g.level === 1 ? "COLLECT EGGS • THROW CORN TO SHOO THE SNAKE" : `${difficultyFor(g.level).threat} • STAY SHARP`,
+      life: 2.1,
+      color: "#fff1a8",
+      big: true,
+    });
     syncStage();
   };
 
@@ -1800,6 +1840,7 @@ export default function Game() {
           <div className="rail-label">CURRENT CHORE</div>
           <h2>{levelDef.name}</h2>
           <p className="level-kicker">{levelDef.kicker}</p>
+          <div className="threat-badge"><span>THREAT</span><strong>{hud.threat}</strong></div>
           <div className="quota-card">
             <span>{bossLevel ? "BOSS GRIT" : "BASKET"}</span>
             <strong>{bossLevel ? `${hud.bossHp} / ${hud.bossMax}` : `${hud.eggs} / ${hud.quota}`}</strong>
@@ -1859,7 +1900,7 @@ export default function Game() {
             {stage === "intro" && (
               <div className="screen intro-screen">
                 <div className="intro-card">
-                  <span className="chapter">LEVEL {hud.level} OF 10</span>
+                  <span className="chapter">LEVEL {hud.level} OF 10 · THREAT: {hud.threat}</span>
                   <span className="chapter-rule" />
                   <p>{levelDef.kicker}</p>
                   <h2>{levelDef.name}</h2>
@@ -1889,7 +1930,7 @@ export default function Game() {
             {stage === "shop" && (
               <div className="screen shop-screen">
                 <div className="shop-header">
-                  <div><span>LEVEL {hud.level} CLEARED</span><h2>Skip’s Supply Shed</h2><p>Score stays put. Coins do the spending.</p></div>
+                  <div><span>LEVEL {hud.level} CLEARED</span><h2>Skip’s Supply Shed</h2><p>Clear bonus: {8 + hud.level * 2} coins. Score stays put.</p></div>
                   <div className="coin-purse"><span>COINS</span><strong>{hud.coins}</strong></div>
                 </div>
                 <div className="shed-note"><span>FROM SKIP’S LEDGER</span><p>“{levelDef.shedLine}”</p></div>
